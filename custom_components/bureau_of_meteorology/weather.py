@@ -139,9 +139,7 @@ class WeatherBase(WeatherEntity):
     @property
     def condition(self):
         """Return the current condition."""
-        return MAP_CONDITION[
-            self.collector.daily_forecasts_data["data"][0]["icon_descriptor"]
-        ]
+        return condition_from_bom_hourly_forecast(self.collector.hourly_forecasts_data[0])
 
     async def async_update(self):
         await self.coordinator.async_update()
