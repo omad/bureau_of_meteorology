@@ -66,6 +66,11 @@ MAP_CONDITION: Final = {
     "windy": "windy",
     None: None,
 }
+MAP_NIGHT_CONDITION: Final = {
+    "sunny": "clear",
+    "mostly_sunny": "clear",
+    None: None,
+}
 
 ATTR_API_TEMP: Final = "temp"
 ATTR_API_TEMP_FEELS_LIKE: Final = "temp_feels_like"

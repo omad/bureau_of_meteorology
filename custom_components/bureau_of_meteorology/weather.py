@@ -25,6 +25,7 @@ from .const import (
     COORDINATOR,
     DOMAIN,
     MAP_CONDITION,
+    MAP_NIGHT_CONDITION,
     SHORT_ATTRIBUTION,
     MODEL_NAME,
 )
@@ -52,6 +53,15 @@ async def async_setup_entry(
 
     if new_entities:
         async_add_entities(new_entities, update_before_add=False)
+
+
+def condition_from_bom_hourly_forecast(forecast_data):
+    # The hourly weather icon_descriptor indicates (at least sometimes)
+    # 'sunny' + is_night=true, when it's going to be a clear night.
+    icon_descriptor = forecast_data["icon_descriptor"]
+    if forecast_data["is_night"]:
+        icon_descriptor = MAP_NIGHT_CONDITION[icon_descriptor]
+    return MAP_CONDITION[icon_descriptor]
 
 
 class WeatherBase(WeatherEntity):
@@ -158,16 +168,16 @@ class WeatherDaily(WeatherBase):
     def forecast(self):
         """Return the forecast."""
         forecasts = []
-        days = len(self.collector.daily_forecasts_data["data"])
+        forecasts_data: list = self.collector.daily_forecasts_data["data"]
         tzinfo = pytz.timezone(self.collector.locations_data["data"]["timezone"])
-        for day in range(0, days):
+        for day_data in forecasts_data:
             forecast = {
-                "datetime": iso8601.parse_date(self.collector.daily_forecasts_data["data"][day]["date"]).astimezone(tzinfo).isoformat(),
-                "native_temperature": self.collector.daily_forecasts_data["data"][day]["temp_max"],
-                "condition": MAP_CONDITION[self.collector.daily_forecasts_data["data"][day]["icon_descriptor"]],
-                "templow": self.collector.daily_forecasts_data["data"][day]["temp_min"],
-                "native_precipitation": self.collector.daily_forecasts_data["data"][day]["rain_amount_max"],
-                "precipitation_probability": self.collector.daily_forecasts_data["data"][day]["rain_chance"],
+                "datetime": iso8601.parse_date(day_data["date"]).astimezone(tzinfo).isoformat(),
+                "native_temperature": day_data["temp_max"],
+                "condition": MAP_CONDITION[day_data["icon_descriptor"]],
+                "templow": day_data["temp_min"],
+                "native_precipitation": day_data["rain_amount_max"],
+                "precipitation_probability": day_data["rain_chance"],
             }
             forecasts.append(forecast)
         return forecasts
@@ -194,20 +204,20 @@ class WeatherHourly(WeatherBase):
     def forecast(self):
         """Return the forecast."""
         forecasts = []
-        hours = len(self.collector.hourly_forecasts_data["data"])
         tzinfo = pytz.timezone(self.collector.locations_data["data"]["timezone"])
-        for hour in range(0, hours):
+        hours = self.collector.hourly_forecasts_data["data"]
+        for hour_data in hours:
             forecast = {
-                "datetime": iso8601.parse_date(self.collector.hourly_forecasts_data["data"][hour]["time"]).astimezone(tzinfo).isoformat(),
-                "native_temperature": self.collector.hourly_forecasts_data["data"][hour]["temp"],
-                "condition": MAP_CONDITION[self.collector.hourly_forecasts_data["data"][hour]["icon_descriptor"]],
-                "native_precipitation": self.collector.hourly_forecasts_data["data"][hour]["rain_amount_max"],
-                "precipitation_probability": self.collector.hourly_forecasts_data["data"][hour]["rain_chance"],
-                "wind_bearing": self.collector.hourly_forecasts_data["data"][hour]["wind_direction"],
-                "native_wind_speed": self.collector.hourly_forecasts_data["data"][hour]["wind_speed_kilometre"],
-                "wind_gust_speed": self.collector.hourly_forecasts_data["data"][hour]["wind_gust_speed_kilometre"],
-                "humidity": self.collector.hourly_forecasts_data["data"][hour]["relative_humidity"],
-                "uv": self.collector.hourly_forecasts_data["data"][hour]["uv"],
+                "datetime": iso8601.parse_date(hour_data["time"]).astimezone(tzinfo).isoformat(),
+                "native_temperature": hour_data["temp"],
+                "condition": condition_from_bom_hourly_forecast(hour_data),
+                "native_precipitation": hour_data["rain_amount_max"],
+                "precipitation_probability": hour_data["rain_chance"],
+                "wind_bearing": hour_data["wind_direction"],
+                "native_wind_speed": hour_data["wind_speed_kilometre"],
+                "wind_gust_speed": hour_data["wind_gust_speed_kilometre"],
+                "humidity": hour_data["relative_humidity"],
+                "uv": hour_data["uv"],
             }
             forecasts.append(forecast)
         return forecasts
